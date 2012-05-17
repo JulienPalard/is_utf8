@@ -1,0 +1,12 @@
+is_utf8 is a program and a c library to check if a given string is a
+valid utf-8 one.
+
+To compile (The program and the lib) :
+ $ make
+
+To run :
+ $ ./is_utf8 $'\xe9' && echo OK || echo KO
+
+The lib and the program will return 0 (Success) if the sequence is a
+valid utf-8 string. Else they will return the byte, starting from one,
+where the error was encontred.
