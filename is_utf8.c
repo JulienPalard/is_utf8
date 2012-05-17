@@ -22,7 +22,9 @@ int is_utf8(unsigned char *str, size_t len)
 
     while (i < len)
     {
-        if (str[i] >= 0xC0 /*11000000*/ && str[i] <= 0xDF /*11011111*/)
+        if (str[i] <= 0x7F)
+            continuation_bytes = 0;
+        else if (str[i] >= 0xC0 /*11000000*/ && str[i] <= 0xDF /*11011111*/)
             continuation_bytes = 1;
         else if (str[i] >= 0xE0 /*11100000*/ && str[i] <= 0xEF /*11101111*/)
             continuation_bytes = 2;
