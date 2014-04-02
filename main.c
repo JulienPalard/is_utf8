@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "is_utf8.h"
 
-#define BUFSIZE 4096
+#define BUFSIZE 4140 /* 4140 is divisible by 2, 3, 4, 5 and 6 */
 
 int main(int ac, char **av)
 {
