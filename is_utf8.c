@@ -15,13 +15,15 @@
   111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
   1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
 */
-int is_utf8(unsigned char *str, size_t len)
+int is_utf8(unsigned char *str, size_t len, size_t * first_invalid_pos)
 {
     size_t i = 0;
+    size_t j = 0;
     size_t continuation_bytes = 0;
 
     while (i < len)
     {
+        j = i;
         if (str[i] <= 0x7F)
             continuation_bytes = 0;
         else if (str[i] >= 0xC0 /*11000000*/ && str[i] <= 0xDF /*11011111*/)
@@ -31,7 +33,10 @@ int is_utf8(unsigned char *str, size_t len)
         else if (str[i] >= 0xF0 /*11110000*/ && str[i] <= 0xF4 /* Cause of RFC 3629 */)
             continuation_bytes = 3;
         else
-            return i + 1;
+        {
+            if(first_invalid_pos) *first_invalid_pos = j;
+            return i+1;
+        }
         i += 1;
         while (i < len && continuation_bytes > 0
                && str[i] >= 0x80
@@ -41,7 +46,10 @@ int is_utf8(unsigned char *str, size_t len)
             continuation_bytes -= 1;
         }
         if (continuation_bytes != 0)
-            return i + 1;
+        {
+            if(first_invalid_pos) *first_invalid_pos = j;
+            return i+1;
+        }
     }
     return 0;
 }

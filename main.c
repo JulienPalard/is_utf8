@@ -10,6 +10,7 @@ int main(int ac, char **av)
 {
     char buffer[BUFSIZE];
     int  read_retval;
+    size_t pos;
 
     if (ac != 2)
     {
@@ -28,10 +29,21 @@ int main(int ac, char **av)
                 perror("read");
                 return EXIT_FAILURE;
             }
-            if (is_utf8((unsigned char*)buffer, read_retval) != 0)
+
+            if(is_utf8((unsigned char*)buffer, read_retval, &pos))
+            {
+                buffer[pos] = 0;
+                fprintf(stdout,"%s\n", buffer);
                 return EXIT_FAILURE;
+            }
+            else
+            {
+                fprintf(stdout, "%s\n", buffer);
+            }
+            /*if (is_utf8((unsigned char*)buffer, read_retval) != 0)
+                return EXIT_FAILURE;*/
         }
         return EXIT_SUCCESS;
     }
-    return is_utf8((unsigned char*)av[1], strlen(av[1]));
+    return is_utf8((unsigned char*)av[1], strlen(av[1]), NULL);
 }

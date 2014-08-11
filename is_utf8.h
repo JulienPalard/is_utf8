@@ -3,6 +3,6 @@
 
 #include <stdlib.h>
 
-int is_utf8(unsigned char *str, size_t len);
+int is_utf8(unsigned char *str, size_t len, size_t * first_invalid_pos);
 
 #endif /* _IS_UTF8_H */
