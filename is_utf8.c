@@ -15,7 +15,7 @@
   111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
   1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
 */
-int is_utf8(unsigned char *str, size_t len, size_t * first_invalid_pos)
+int is_utf8(unsigned char *str, size_t len, size_t* first_invalid_pos)
 {
     size_t i = 0;
     size_t j = 0;
@@ -34,8 +34,9 @@ int is_utf8(unsigned char *str, size_t len, size_t * first_invalid_pos)
             continuation_bytes = 3;
         else
         {
-            if(first_invalid_pos) *first_invalid_pos = j;
-            return i+1;
+            if (first_invalid_pos)
+                *first_invalid_pos = j;
+            return i + 1;
         }
         i += 1;
         while (i < len && continuation_bytes > 0
@@ -47,10 +48,10 @@ int is_utf8(unsigned char *str, size_t len, size_t * first_invalid_pos)
         }
         if (continuation_bytes != 0)
         {
-            if(first_invalid_pos) *first_invalid_pos = j;
-            return i+1;
+            if (first_invalid_pos)
+                *first_invalid_pos = j;
+            return i + 1;
         }
     }
     return 0;
 }
-

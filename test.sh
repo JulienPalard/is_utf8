@@ -1,18 +1,26 @@
+#!/bin/bash
 
-answer=$(echo Привет$(echo мир | iconv -f utf-8 -t koi8-r) | ./is_utf8 -)
-error_level=$?
-[ $error_level == 1 ] || exit 1
-[ $answer == "Привет" ] || exit 1
+utf8_test()
+{
+    to_test="$1"
+    should_return="$2"
+    should_print="$3"
 
-answer=$(echo Привет$(echo мир | iconv -f utf-8 -t cp1251) | ./is_utf8 -)
-error_level=$?
-[ $error_level == 1 ] || exit 1
-[ $answer == "Привет" ] || exit 1
+    answer="$(echo "$1" | ./is_utf8 -)"
+    error_level=$?
+    if ! [ z"$error_level" == z"$should_return" ]
+    then
+        echo "Wrong error level, got $error_level should be $should_return"
+        exit 1
+    fi
+    if ! [ z"$answer" == z"$should_print" ]
+    then
+        echo "Wrong answer, got $answer, should be $should_print"
+        exit 1
+    fi
+}
 
-answer=$(echo Привет$(echo мир | iconv -f utf-8 -t utf-8) | ./is_utf8 -)
-error_level=$?
-[ $error_level == 0 ] || exit 1
-[ $answer == "Приветмир" ] || exit 1
+utf8_test "$(echo Привет$(echo мир | iconv -f utf-8 -t cp1251))" 1 "Привет"
+utf8_test "$(echo Привет$(echo мир | iconv -f utf-8 -t utf-8))" 0 "Приветмир"
 
-echo "All tests are OK"
-exit 0
+echo "All tests are OK."
