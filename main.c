@@ -15,7 +15,7 @@ int showstr(const char *str, unsigned int max_length)
     {
         if (max_length <= 0)
             return out;
-        out += printf((*str < ' ' || *str > '~') ? "\\x%.2X" : "%c",
+        out += fprintf(stderr, (*str < ' ' || *str > '~') ? "\\x%.2X" : "%c",
                       (unsigned char)*str);
         str++;
         max_length -= 1;
@@ -24,12 +24,10 @@ int showstr(const char *str, unsigned int max_length)
 }
 
 
-static void pretty_print_error_at(char *str, int pos)
+static void pretty_print_error_at(char *str, int pos, const char *message)
 {
     int chars_to_error;
     char *error;
-
-    error = "^ This byte is not UTF8.";
 
     if (pos > 10)
     {
@@ -44,14 +42,15 @@ static void pretty_print_error_at(char *str, int pos)
         chars_to_error = showstr(str, pos); /* Print up to error. */
         showstr(str + pos, 10); /* Print after error, to get context. */
     }
-    printf("\n%*s\n", chars_to_error + strlen(error), error);
+    fprintf(stderr, "\n%*s^ %s\n", (int)(chars_to_error), "", message);
 }
 
 int main(int ac, char **av)
 {
     char buffer[BUFSIZE];
     int  read_retval;
-    size_t pos;
+    int pos;
+    char *message;
 
     if (ac != 2)
     {
@@ -70,17 +69,17 @@ int main(int ac, char **av)
                 perror("read");
                 return EXIT_FAILURE;
             }
-            if (is_utf8((unsigned char*)buffer, read_retval, &pos))
+            pos = is_utf8((unsigned char*)buffer, read_retval, &message);
+            if (message != NULL)
             {
-                pretty_print_error_at(buffer, pos);
+                pretty_print_error_at(buffer, pos, message);
                 return EXIT_FAILURE;
-            }
-            else
-            {
-                fprintf(stdout, "UTF-8 compliant ! Maybe ASCII !\n");
             }
         }
         return EXIT_SUCCESS;
     }
-    return is_utf8((unsigned char*)av[1], strlen(av[1]), NULL);
+    pos = is_utf8((unsigned char*)av[1], strlen(av[1]), &message);
+    if (message != NULL)
+        pretty_print_error_at(av[1], pos, message);
+    return message == NULL ? EXIT_SUCCESS : EXIT_FAILURE;
 }
