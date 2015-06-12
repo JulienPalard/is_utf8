@@ -7,6 +7,9 @@ To compile (The program and the lib) :
 To run :
  $ ./is_utf8 $'\xe9' && echo OK || echo KO
 
+Or use the wrapper script (expects is_utf8 to be in the same directory):
+$ ./check_file.sh path_to_file/file.txt
+
 The lib and the program will return 0 (Success) if the sequence is a
 valid utf-8 string. Else they will return the byte, starting from one,
 where the error was encontred.
