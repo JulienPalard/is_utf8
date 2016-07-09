@@ -56,8 +56,10 @@ static int is_utf8_readline(FILE *stream)
     size_t size;
     ssize_t str_length;
     char *message;
+    int lineno;
     int pos;
 
+    lineno = 1;
     string = NULL;
     size = 0;
     while ((str_length = getline(&string, &size, stream)) != -1)
@@ -65,14 +67,36 @@ static int is_utf8_readline(FILE *stream)
         pos = is_utf8((unsigned char*)string, str_length, &message);
         if (message != NULL)
         {
+            fprintf(stderr, "Encoding error on line %d, character %d\n", lineno, pos);
             pretty_print_error_at(string, pos, message);
             free(string);
             return EXIT_FAILURE;
         }
+        lineno += 1;
     }
     if (string != NULL)
         free(string);
     return EXIT_SUCCESS;
+}
+
+static void count_lines(const char *string, int length, int up_to, int *line, int *column)
+{
+    int pos;
+    int line_start_at;
+
+    pos = 0;
+    *line = 1;
+    line_start_at = 0;
+    while (pos < length && pos < up_to)
+    {
+        if (string[pos] == '\n')
+        {
+            line_start_at = pos + 1;
+            *line += 1;
+        }
+        pos += 1;
+    }
+    *column = up_to - line_start_at;
 }
 
 static int is_utf8_mmap(const char *file_path)
@@ -83,6 +107,8 @@ static int is_utf8_mmap(const char *file_path)
     int pos;
     char *message;
     int retval;
+    int error_column;
+    int error_line;
 
     retval = EXIT_SUCCESS;
     fd = open(file_path, O_RDONLY);
@@ -100,6 +126,9 @@ static int is_utf8_mmap(const char *file_path)
     pos = is_utf8((unsigned char*)addr, sb.st_size, &message);
     if (message != NULL)
     {
+        count_lines(addr, sb.st_size, pos, &error_line, &error_column);
+        fprintf(stderr, "%s: Encoding error on line %d, character %d\n",
+                file_path, error_line, error_column);
         pretty_print_error_at(addr, pos, message);
         retval = EXIT_FAILURE;
     }
