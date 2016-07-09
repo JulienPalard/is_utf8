@@ -27,7 +27,6 @@ int showstr(const char *str, unsigned int max_length)
 static void pretty_print_error_at(char *str, int pos, const char *message)
 {
     int chars_to_error;
-    char *error;
 
     if (pos > 10)
     {
