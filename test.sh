@@ -1,6 +1,24 @@
 #!/bin/bash
 
-utf8_test()
+utf8_test_file()
+{
+    printf "."
+    to_test="$1"
+    should_return="$2"
+    ./is_utf8 <(printf "%s" "$to_test") 2>/dev/null >/dev/null
+    error_number=$?
+    if ! [ z"$error_number" == z"$should_return" ]
+    then
+        [ $should_return == 1 ] &&
+        printf "\nThis one should have failed:\n" ||
+        printf "\nThis one should succeed:\n"
+        printf "%s" "$to_test" | hexdump -C
+        printf "%s" "$to_test" | ./is_utf8 <(printf "%s" "$to_test")
+        exit 1
+    fi
+}
+
+utf8_test_pipe()
 {
     printf "."
     to_test="$1"
@@ -16,6 +34,12 @@ utf8_test()
         printf "%s" "$to_test" | ./is_utf8 -
         exit 1
     fi
+}
+
+utf8_test()
+{
+    utf8_test_pipe "$@"
+    utf8_test_file "$@"
 }
 
 should_pass()

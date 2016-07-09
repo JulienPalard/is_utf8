@@ -2,7 +2,8 @@ is_utf8 is a program and a c library to check if a given file (or stdin) contain
 valid utf-8 sequences.
 
 To compile (The program and the lib) :
- $ make
+
+     $ make
 
 To run with a string, note how bash can help to forge string from
 hexadecimal:

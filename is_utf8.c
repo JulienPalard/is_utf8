@@ -31,6 +31,7 @@ int is_utf8(unsigned char *str, size_t len, char **message)
 {
     size_t i = 0;
 
+    *message = NULL;
     while (i < len)
     {
         if (str[i] <= 0x7F) /* 00..7F */

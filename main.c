@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -5,11 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/mman.h>
+
 #include "is_utf8.h"
 
-#define BUFSIZE 4096
-
-int showstr(const char *str, unsigned int max_length)
+static int showstr(const char *str, unsigned int max_length)
 {
     size_t out;
 
@@ -25,7 +26,6 @@ int showstr(const char *str, unsigned int max_length)
     }
     return out;
 }
-
 
 static void pretty_print_error_at(char *str, int pos, const char *message)
 {
@@ -47,44 +47,78 @@ static void pretty_print_error_at(char *str, int pos, const char *message)
     fprintf(stderr, "\n%*s^ %s\n", (int)(chars_to_error), "", message);
 }
 
+#define handle_error(msg, target)                                  \
+    do {retval = EXIT_FAILURE; perror(msg); goto target;} while (0)
+
+static int is_utf8_readline(FILE *stream)
+{
+    char *string;
+    size_t size;
+    ssize_t str_length;
+    char *message;
+    int pos;
+
+    string = NULL;
+    size = 0;
+    while ((str_length = getline(&string, &size, stream)) != -1)
+    {
+        pos = is_utf8((unsigned char*)string, str_length, &message);
+        if (message != NULL)
+        {
+            pretty_print_error_at(string, pos, message);
+            free(string);
+            return EXIT_FAILURE;
+        }
+    }
+    if (string != NULL)
+        free(string);
+    return EXIT_SUCCESS;
+}
+
+static int is_utf8_mmap(const char *file_path)
+{
+    char *addr;
+    struct stat sb;
+    int fd;
+    int pos;
+    char *message;
+    int retval;
+
+    retval = EXIT_SUCCESS;
+    fd = open(file_path, O_RDONLY);
+    if (fd == -1)
+        handle_error("open", err_open);
+    if (fstat(fd, &sb) == -1)           /* To obtain file size */
+        handle_error("fstat", err_fstat);
+    addr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (addr == MAP_FAILED)
+    {
+        /* Can't nmap, maybe a pipe or whatever, let's try readline. */
+        close(fd);
+        return is_utf8_readline(fopen(file_path, "r"));
+    }
+    pos = is_utf8((unsigned char*)addr, sb.st_size, &message);
+    if (message != NULL)
+    {
+        pretty_print_error_at(addr, pos, message);
+        retval = EXIT_FAILURE;
+    }
+    munmap(addr, sb.st_size);
+err_fstat:
+    close(fd);
+err_open:
+    return retval;
+}
+
 int main(int ac, char **av)
 {
-    char buffer[BUFSIZE];
-    int read_retval;
-    int pos;
-    int source_fd;
-    char *message;
-
     if (ac != 2)
     {
         fprintf(stderr, "USAGE: %s FILE\n    Use '-' as a FILE to read from stdin.\n", av[0]);
         return EXIT_FAILURE;
     }
     if (strcmp(av[1], "-") == 0)
-        source_fd = 0;
+        return is_utf8_readline(stdin);
     else
-        source_fd = open(av[1], O_RDONLY);
-    if (source_fd == -1)
-    {
-        perror("open");
-        return EXIT_FAILURE;
-    }
-    while (42)
-    {
-        read_retval = read(source_fd, buffer, BUFSIZE);
-        if (read_retval == 0)
-            return EXIT_SUCCESS;
-        if (read_retval == -1)
-        {
-            perror("read");
-            return EXIT_FAILURE;
-        }
-        pos = is_utf8((unsigned char*)buffer, read_retval, &message);
-        if (message != NULL)
-        {
-            pretty_print_error_at(buffer, pos, message);
-            return EXIT_FAILURE;
-        }
-    }
-    return EXIT_SUCCESS;
+        return is_utf8_mmap(av[1]);
 }
