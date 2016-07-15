@@ -155,6 +155,7 @@ static void usage(const char *program_name) {
            "  -h, --help       display this help text and exit\n"
            "  -q, --quiet      suppress all normal output\n"
            "  -l, --list       print only names of FILEs containing invalid UTF-8\n"
+           "  -i, --invert     list valid UTF-8 files instead of invalid ones"
            ""
            "This is version %s.\n",
            program_name, VERSION);
@@ -166,17 +167,20 @@ int main(int ac, char **av)
     int exit_value;
     int i;
     int list_only;
+    int invert;
     struct option options[] = {
         { "help", no_argument, NULL, 'h' },
         { "quiet", no_argument, &quiet, 1 },
         { "list-only", no_argument, &list_only, 1 },
+        { "invert", no_argument, &invert, 1 },
         { 0, 0, 0, 0 }
     };
     int opt;
 
     quiet = 0;
     list_only = 0;
-    while ((opt = getopt_long(ac, av, "hql", options, NULL)) != -1) {
+    invert = 0;
+    while ((opt = getopt_long(ac, av, "hqli", options, NULL)) != -1) {
         switch (opt) {
             case 0:
                 break;
@@ -192,6 +196,10 @@ int main(int ac, char **av)
 
             case 'l':
                 list_only = 1;
+                break;
+
+            case 'i':
+                invert = 1;
                 break;
 
             case '?':
@@ -214,9 +222,14 @@ int main(int ac, char **av)
         {
             if (is_utf8_mmap(av[i], quiet) == EXIT_FAILURE)
             {
-                if (list_only)
+                if (list_only && !invert)
                     printf("%s\n", av[i]);
                 exit_value = EXIT_FAILURE;
+            }
+            else
+            {
+                if (list_only && invert)
+                    printf("%s\n", av[i]);
             }
         }
         return exit_value;
