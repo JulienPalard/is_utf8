@@ -149,10 +149,15 @@ err_open:
 }
 
 static void usage(const char *program_name) {
-    printf("Usage: %s [-hq] [--help] [--quiet] [file ...]\n",
-           program_name);
-    printf("Check whether input files are valid UTF-8.\n");
-    printf("This is version %s.\n", VERSION);
+    printf("Usage: %s [OPTION]... [FILE]...\n"
+           "Check whether input files are valid UTF-8.\n"
+           "\n"
+           "  -h, --help       display this help text and exit\n"
+           "  -q, --quiet      suppress all normal output\n"
+           "  -l, --list       print only names of FILEs containing invalid UTF-8\n"
+           ""
+           "This is version %s.\n",
+           program_name, VERSION);
 }
 
 int main(int ac, char **av)
@@ -160,35 +165,44 @@ int main(int ac, char **av)
     int quiet;
     int exit_value;
     int i;
+    int list_only;
     struct option options[] = {
         { "help", no_argument, NULL, 'h' },
         { "quiet", no_argument, &quiet, 1 },
+        { "list-only", no_argument, &list_only, 1 },
         { 0, 0, 0, 0 }
     };
     int opt;
 
     quiet = 0;
-    while ((opt = getopt_long(ac, av, "hq", options, NULL)) != -1) {
+    list_only = 0;
+    while ((opt = getopt_long(ac, av, "hql", options, NULL)) != -1) {
         switch (opt) {
             case 0:
                 break;
 
             case 'h':
                 usage(av[0]);
-                exit(0);
+                return EXIT_SUCCESS;
                 break;
 
             case 'q':
                 quiet = 1;
                 break;
 
+            case 'l':
+                list_only = 1;
+                break;
+
             case '?':
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
 
             default:
-                abort();
+                return EXIT_FAILURE;
         }
     }
+    if (list_only != 0)
+        quiet = 1;
     if (optind == ac)
     {
         return is_utf8_readline(stdin, quiet);
@@ -199,7 +213,11 @@ int main(int ac, char **av)
         for (i = optind; i < ac; ++i)
         {
             if (is_utf8_mmap(av[i], quiet) == EXIT_FAILURE)
+            {
+                if (list_only)
+                    printf("%s\n", av[i]);
                 exit_value = EXIT_FAILURE;
+            }
         }
         return exit_value;
     }
