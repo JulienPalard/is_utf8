@@ -22,77 +22,87 @@ static int showstr(const char *str, unsigned int max_length)
     {
         if (max_length <= 0)
             return out;
-        out += fprintf(stderr, (*str < ' ' || *str > '~') ? "\\x%.2X" : "%c",
-                       (unsigned char)*str);
+        out += printf((*str < ' ' || *str > '~') ? "\\x%.2X" : "%c",
+                      (unsigned char)*str);
         str++;
         max_length -= 1;
     }
     return out;
 }
 
-static void pretty_print_error_at(char *str, int pos, const char *message)
+static void print_utf8_error(
+    const char* file_path, int error_line, int error_column, char *str, int pos,
+    const char *message, int quiet, int verbose, int list_only, int invert)
 {
     int chars_to_error;
 
-    if (pos > 10)
+    if (quiet)
+        return;
+    if (message && !invert)
     {
-        /* Ok, we got some context to print ... */
-        str = str + pos - 10; /* Print from 10 char before error. */
-        chars_to_error = showstr(str, 10); /* Print up to error. */
-        showstr(str + 10, 10); /* Print after error, to get context. */
+        if (list_only)
+            printf("%s\n", file_path);
+        else
+            printf("%s:%d:%d: %s\n", file_path, error_line, error_column, message);
+        if (verbose && !list_only)
+        {
+            if (pos > 10)
+            {
+                /* Ok, we got some context to print ... */
+                str = str + pos - 10; /* Print from 10 char before error. */
+                chars_to_error = showstr(str, 10); /* Print up to error. */
+                showstr(str + 10, 10); /* Print after error, to get context. */
+            }
+            else
+            {
+                /* Error is around the start of the string, we don't have context */
+                chars_to_error = showstr(str, pos); /* Print up to error. */
+                showstr(str + pos, 10); /* Print after error, to get context. */
+            }
+            printf("\n%*s^\n", (int)(chars_to_error), "");
+        }
     }
-    else
+    if (!message && invert)
     {
-        /* Error is around the start of the string, we don't have context */
-        chars_to_error = showstr(str, pos); /* Print up to error. */
-        showstr(str + pos, 10); /* Print after error, to get context. */
+        printf("%s\n", file_path);
     }
-    fprintf(stderr, "\n%*s^ %s\n", (int)(chars_to_error), "", message);
 }
 
 #define handle_error(msg, target)                                   \
     do {retval = EXIT_FAILURE; perror(msg); goto target;} while (0)
 
-static int is_utf8_readline(FILE *stream, int quiet)
+static int is_utf8_readline(FILE *stream, const char *file_path,
+                            int quiet, int verbose, int list_only, int invert)
 {
-    char *string;
-    size_t size;
+    char *string = NULL;
+    size_t size = 0;
     ssize_t str_length;
-    char *message;
-    int lineno;
-    int pos;
+    char *message = NULL;
+    int lineno = 1;
+    int pos = 0;
 
-    lineno = 1;
-    string = NULL;
-    size = 0;
     while ((str_length = getline(&string, &size, stream)) != -1)
     {
         pos = is_utf8((unsigned char*)string, str_length, &message);
         if (message != NULL)
         {
-            if (!quiet)
-            {
-                fprintf(stderr, "Encoding error on line %d, character %d\n", lineno, pos);
-                pretty_print_error_at(string, pos, message);
-            }
-            free(string);
-            return EXIT_FAILURE;
+            break;
         }
         lineno += 1;
     }
+    print_utf8_error(file_path, lineno, pos, string, pos, message,
+                     quiet, verbose, list_only, invert);
     if (string != NULL)
         free(string);
-    return EXIT_SUCCESS;
+    return message == NULL ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 static void count_lines(const char *string, int length, int up_to, int *line, int *column)
 {
-    int pos;
-    int line_start_at;
+    int pos = 0;
+    int line_start_at = 0;
 
-    pos = 0;
     *line = 1;
-    line_start_at = 0;
     while (pos < length && pos < up_to)
     {
         if (string[pos] == '\n')
@@ -105,18 +115,18 @@ static void count_lines(const char *string, int length, int up_to, int *line, in
     *column = up_to - line_start_at;
 }
 
-static int is_utf8_mmap(const char *file_path, int quiet)
+static int is_utf8_mmap(const char *file_path, int quiet, int verbose,
+                        int list_only, int invert)
 {
     char *addr;
     struct stat sb;
     int fd;
-    int pos;
+    int pos = 0;
     char *message;
-    int retval;
-    int error_column;
-    int error_line;
+    int retval = EXIT_SUCCESS;
+    int error_column = 0;
+    int error_line = 0;
 
-    retval = EXIT_SUCCESS;
     fd = open(file_path, O_RDONLY);
     if (fd == -1)
         handle_error("open", err_open);
@@ -127,20 +137,16 @@ static int is_utf8_mmap(const char *file_path, int quiet)
     {
         /* Can't nmap, maybe a pipe or whatever, let's try readline. */
         close(fd);
-        return is_utf8_readline(fopen(file_path, "r"), quiet);
+        return is_utf8_readline(fopen(file_path, "r"), file_path,
+                                quiet, verbose, list_only, invert);
     }
     pos = is_utf8((unsigned char*)addr, sb.st_size, &message);
     if (message != NULL)
-    {
-        if (!quiet)
-        {
-            count_lines(addr, sb.st_size, pos, &error_line, &error_column);
-            fprintf(stderr, "%s: Encoding error on line %d, character %d\n",
-                    file_path, error_line, error_column);
-            pretty_print_error_at(addr, pos, message);
-        }
+        count_lines(addr, sb.st_size, pos, &error_line, &error_column);
+    print_utf8_error(file_path, error_line, error_column, addr, pos, message,
+                     quiet, verbose, list_only, invert);
+    if (message != NULL)
         retval = EXIT_FAILURE;
-    }
     munmap(addr, sb.st_size);
 err_fstat:
     close(fd);
@@ -155,32 +161,32 @@ static void usage(const char *program_name) {
            "  -h, --help       display this help text and exit\n"
            "  -q, --quiet      suppress all normal output\n"
            "  -l, --list       print only names of FILEs containing invalid UTF-8\n"
-           "  -i, --invert     list valid UTF-8 files instead of invalid ones"
-           ""
+           "  -i, --invert     list valid UTF-8 files instead of invalid ones\n"
+           "  -v, --verbose    print detailed error (multiple lines)\n"
+           "\n"
            "This is version %s.\n",
            program_name, VERSION);
 }
 
 int main(int ac, char **av)
 {
-    int quiet;
-    int exit_value;
+    int quiet = 0;
+    int exit_value = EXIT_SUCCESS;
     int i;
-    int list_only;
-    int invert;
+    int list_only = 0;
+    int invert = 0;
+    int verbose = 0;
+    int opt;
     struct option options[] = {
         { "help", no_argument, NULL, 'h' },
         { "quiet", no_argument, &quiet, 1 },
         { "list-only", no_argument, &list_only, 1 },
         { "invert", no_argument, &invert, 1 },
+        { "verbose", no_argument, &verbose, 1 },
         { 0, 0, 0, 0 }
     };
-    int opt;
 
-    quiet = 0;
-    list_only = 0;
-    invert = 0;
-    while ((opt = getopt_long(ac, av, "hqli", options, NULL)) != -1) {
+    while ((opt = getopt_long(ac, av, "hqliv", options, NULL)) != -1) {
         switch (opt) {
             case 0:
                 break;
@@ -188,7 +194,6 @@ int main(int ac, char **av)
             case 'h':
                 usage(av[0]);
                 return EXIT_SUCCESS;
-                break;
 
             case 'q':
                 quiet = 1;
@@ -202,35 +207,31 @@ int main(int ac, char **av)
                 invert = 1;
                 break;
 
+            case 'v':
+                verbose = 1;
+                break;
+
             case '?':
+                usage(av[0]);
                 return EXIT_FAILURE;
 
             default:
+                usage(av[0]);
                 return EXIT_FAILURE;
         }
     }
-    if (list_only != 0)
-        quiet = 1;
     if (optind == ac)
     {
-        return is_utf8_readline(stdin, quiet);
+        return is_utf8_readline(stdin, "(standard input)", quiet, verbose,
+                                list_only, invert);
     }
     else
     {
-        exit_value = EXIT_SUCCESS;
         for (i = optind; i < ac; ++i)
         {
-            if (is_utf8_mmap(av[i], quiet) == EXIT_FAILURE)
-            {
-                if (list_only && !invert)
-                    printf("%s\n", av[i]);
+            if (is_utf8_mmap(av[i], quiet, verbose,
+                             list_only, invert) == EXIT_FAILURE)
                 exit_value = EXIT_FAILURE;
-            }
-            else
-            {
-                if (list_only && invert)
-                    printf("%s\n", av[i]);
-            }
         }
         return exit_value;
     }
