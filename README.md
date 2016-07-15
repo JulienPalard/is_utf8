@@ -55,6 +55,7 @@ List non-UTF8 compatible files:
     main.o:1:41: After a first byte of E0, expecting a 2nd byte between A0 and BF.
 
 List UTF8-compatible files:
+
     $ ./isutf8 --invert *
     COPYRIGHT
     is_utf8.c
@@ -65,6 +66,7 @@ List UTF8-compatible files:
     test.sh
 
 Just list non-UTF8 compatible files:
+
     $ ./isutf8 --list *
     isutf8
     is_utf8.o
@@ -72,6 +74,7 @@ Just list non-UTF8 compatible files:
     main.o
 
 Be verbose about the exact error:
+
     $ ./isutf8 --verbose *
     isutf8:1:40: Expecting bytes in the following ranges: 00..7F C2..F4
     \xB0.
