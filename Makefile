@@ -5,7 +5,7 @@
 ## Login   <is_utf8@mandark.fr>
 ##
 
-NAME = is_utf8
+NAME = isutf8
 SRC = main.c is_utf8.c
 OBJ = $(SRC:.c=.o)
 
@@ -20,7 +20,7 @@ SONAME = $(LINKERNAME).$(VERSION)
 REALNAME = $(SONAME).$(MINOR).$(RELEASE)
 
 CC = gcc
-CFLAGS = -O3 -Wextra -Wall -ansi -pedantic -Wstrict-prototypes
+CFLAGS = -O3 -Wextra -Wall -ansi -Wstrict-prototypes
 
 $(NAME):	IS_UTF8_LIB $(OBJ)
 	$(CC) $(CFLAGS) -o $(NAME) $(OBJ)

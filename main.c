@@ -6,9 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <sys/mman.h>
 
 #include "is_utf8.h"
+
+#define VERSION "1.2"
 
 static int showstr(const char *str, unsigned int max_length)
 {
@@ -47,10 +50,10 @@ static void pretty_print_error_at(char *str, int pos, const char *message)
     fprintf(stderr, "\n%*s^ %s\n", (int)(chars_to_error), "", message);
 }
 
-#define handle_error(msg, target)                                  \
+#define handle_error(msg, target)                                   \
     do {retval = EXIT_FAILURE; perror(msg); goto target;} while (0)
 
-static int is_utf8_readline(FILE *stream)
+static int is_utf8_readline(FILE *stream, int quiet)
 {
     char *string;
     size_t size;
@@ -67,8 +70,11 @@ static int is_utf8_readline(FILE *stream)
         pos = is_utf8((unsigned char*)string, str_length, &message);
         if (message != NULL)
         {
-            fprintf(stderr, "Encoding error on line %d, character %d\n", lineno, pos);
-            pretty_print_error_at(string, pos, message);
+            if (!quiet)
+            {
+                fprintf(stderr, "Encoding error on line %d, character %d\n", lineno, pos);
+                pretty_print_error_at(string, pos, message);
+            }
             free(string);
             return EXIT_FAILURE;
         }
@@ -99,7 +105,7 @@ static void count_lines(const char *string, int length, int up_to, int *line, in
     *column = up_to - line_start_at;
 }
 
-static int is_utf8_mmap(const char *file_path)
+static int is_utf8_mmap(const char *file_path, int quiet)
 {
     char *addr;
     struct stat sb;
@@ -121,15 +127,18 @@ static int is_utf8_mmap(const char *file_path)
     {
         /* Can't nmap, maybe a pipe or whatever, let's try readline. */
         close(fd);
-        return is_utf8_readline(fopen(file_path, "r"));
+        return is_utf8_readline(fopen(file_path, "r"), quiet);
     }
     pos = is_utf8((unsigned char*)addr, sb.st_size, &message);
     if (message != NULL)
     {
-        count_lines(addr, sb.st_size, pos, &error_line, &error_column);
-        fprintf(stderr, "%s: Encoding error on line %d, character %d\n",
-                file_path, error_line, error_column);
-        pretty_print_error_at(addr, pos, message);
+        if (!quiet)
+        {
+            count_lines(addr, sb.st_size, pos, &error_line, &error_column);
+            fprintf(stderr, "%s: Encoding error on line %d, character %d\n",
+                    file_path, error_line, error_column);
+            pretty_print_error_at(addr, pos, message);
+        }
         retval = EXIT_FAILURE;
     }
     munmap(addr, sb.st_size);
@@ -139,15 +148,59 @@ err_open:
     return retval;
 }
 
+static void usage(const char *program_name) {
+    printf("Usage: %s [-hq] [--help] [--quiet] [file ...]\n",
+           program_name);
+    printf("Check whether input files are valid UTF-8.\n");
+    printf("This is version %s.\n", VERSION);
+}
+
 int main(int ac, char **av)
 {
-    if (ac != 2)
-    {
-        fprintf(stderr, "USAGE: %s FILE\n    Use '-' as a FILE to read from stdin.\n", av[0]);
-        return EXIT_FAILURE;
+    int quiet;
+    int exit_value;
+    int i;
+    struct option options[] = {
+        { "help", no_argument, NULL, 'h' },
+        { "quiet", no_argument, &quiet, 1 },
+        { 0, 0, 0, 0 }
+    };
+    int opt;
+
+    quiet = 0;
+    while ((opt = getopt_long(ac, av, "hq", options, NULL)) != -1) {
+        switch (opt) {
+            case 0:
+                break;
+
+            case 'h':
+                usage(av[0]);
+                exit(0);
+                break;
+
+            case 'q':
+                quiet = 1;
+                break;
+
+            case '?':
+                exit(EXIT_FAILURE);
+
+            default:
+                abort();
+        }
     }
-    if (strcmp(av[1], "-") == 0)
-        return is_utf8_readline(stdin);
+    if (optind == ac)
+    {
+        return is_utf8_readline(stdin, quiet);
+    }
     else
-        return is_utf8_mmap(av[1]);
+    {
+        exit_value = EXIT_SUCCESS;
+        for (i = optind; i < ac; ++i)
+        {
+            if (is_utf8_mmap(av[i], quiet) == EXIT_FAILURE)
+                exit_value = EXIT_FAILURE;
+        }
+        return exit_value;
+    }
 }
