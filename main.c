@@ -30,7 +30,7 @@ static void show_hex_str(const char *str, unsigned int max_length)
         printf("\\x%.2X", (unsigned char)*str++);
 }
 
-static void show_context(char *str, int str_length, int err_pos_in_str)
+static void show_context(char *str, int str_length, int err_pos_in_str, int faulty_bytes)
 {
     int chars_before_error = MIN(err_pos_in_str, 8);
     int chars_after_error = MIN(str_length - err_pos_in_str, 8);
@@ -38,14 +38,16 @@ static void show_context(char *str, int str_length, int err_pos_in_str)
     show_str(str + err_pos_in_str - chars_before_error, chars_before_error + chars_after_error); /* Print up to error. */
     printf("\n");
     show_hex_str(str + err_pos_in_str - chars_before_error, chars_before_error + chars_after_error); /* Print up to error. */
-    printf("\n%*s^^^^\n", (4 * chars_before_error), "");
+    printf("\n%*s", (4 * chars_before_error), "");
+    printf("%.*s\n", faulty_bytes * 4, "^^^^^^^^^^^^^^^^");
 }
 
 static void print_utf8_error(
     const char* file_path,
     int error_line, int error_column, int byte_no,
     char *str, int str_length, int err_pos_in_str,
-    const char *message, int quiet, int verbose,
+    const char *message, int faulty_bytes,
+    int quiet, int verbose,
     int list_only, int invert)
 {
     if (quiet)
@@ -60,7 +62,7 @@ static void print_utf8_error(
                    message);
         if (verbose && !list_only)
         {
-            show_context(str, str_length, err_pos_in_str);
+            show_context(str, str_length, err_pos_in_str, faulty_bytes);
         }
     }
     if (!message && invert)
@@ -82,15 +84,16 @@ static int is_utf8_readline(FILE *stream, const char *file_path,
     int lineno = 1;
     int pos = 0;
     int offset = 0;
+    int faulty_bytes = 0;
 
     while ((str_length = getline(&string, &size, stream)) != -1)
     {
-        pos = is_utf8((unsigned char*)string, str_length, &message);
+        pos = is_utf8((unsigned char*)string, str_length, &message, &faulty_bytes);
         if (message != NULL)
         {
             offset += pos;
             print_utf8_error(file_path, lineno, pos, offset,
-                             string, pos, str_length, message,
+                             string, pos, str_length, message, faulty_bytes,
                              quiet, verbose, list_only, invert);
             break;
         }
@@ -131,6 +134,7 @@ static int is_utf8_mmap(const char *file_path, int quiet, int verbose,
     int retval = EXIT_SUCCESS;
     int error_column = 1;
     int error_line = 0;
+    int faulty_bytes = 0;
 
     fd = open(file_path, O_RDONLY);
     if (fd == -1)
@@ -145,11 +149,11 @@ static int is_utf8_mmap(const char *file_path, int quiet, int verbose,
         return is_utf8_readline(fopen(file_path, "r"), file_path,
                                 quiet, verbose, list_only, invert);
     }
-    pos = is_utf8((unsigned char*)addr, sb.st_size, &message);
+    pos = is_utf8((unsigned char*)addr, sb.st_size, &message, &faulty_bytes);
     if (message != NULL)
         count_lines(addr, sb.st_size, pos, &error_line, &error_column);
     print_utf8_error(file_path, error_line, error_column, pos,
-                     addr, sb.st_size, pos, message,
+                     addr, sb.st_size, pos, message, faulty_bytes,
                      quiet, verbose, list_only, invert);
     if (message != NULL)
         retval = EXIT_FAILURE;
