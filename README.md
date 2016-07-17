@@ -5,6 +5,25 @@ valid utf-8 sequences.
 
     $ make
 
+# Demo
+
+    $ isutf8 * -v
+    isutf8: line 1, char 97, byte 96: Expecting bytes in the following ranges: 00..7F C2..F4.
+    40 00 40 00 00 00 00 00 C0 01 00 00 00 00 00 00  | @.@.............
+                            ^^                       |         ^
+
+    is_utf8.o: line 1, char 66, byte 65: Expecting bytes in the following ranges: 00..7F C2..F4.
+    00 40 00 0E 00 0B 00 48 85 F6 48 C7 02 00 00 00  | .@.....H..H.....
+                            ^^                       |         ^
+
+    libisutf8.so: line 1, char 153, byte 152: After a first byte of F0, expecting 2nd byte between 90 and BF.
+    68 12 20 00 00 00 00 00 F0 01 00 00 00 00 00 00  | h. .............
+                            ^^^^^                    |         ^^
+
+    main.o: line 1, char 76, byte 75: Expecting bytes in the following ranges: 00..7F C2..F4.
+    56 41 55 41 54 55 53 48 83 EC 18 48 8B 5C 24 58  | VAUATUSH...H.\$X
+                            ^^                       |         ^
+
 # Test a file
 
 `isutf8` returns 0 if the file is correctly encoded:
