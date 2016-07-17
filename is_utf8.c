@@ -83,12 +83,12 @@ int is_utf8(unsigned char *str, size_t len, char **message)
             {
                 if (str[i + 1] < 0x80 || str[i + 1] > 0xBF)
                 {
-                    *message = "After a first byte between E1 and EC, expecting the 2nd byte between 80 and BF";
+                    *message = "After a first byte between E1 and EC, expecting the 2nd byte between 80 and BF.";
                     return i + 1;
                 }
                 if (str[i + 2] < 0x80 || str[i + 2] > 0xBF)
                 {
-                    *message = "After a first byte between E1 and EC, expecting the 3rd byte between 80 and BF";
+                    *message = "After a first byte between E1 and EC, expecting the 3rd byte between 80 and BF.";
                     return i + 2;
                 }
             }
@@ -176,17 +176,17 @@ int is_utf8(unsigned char *str, size_t len, char **message)
             {
                 if (str[i + 1] < 0x80 || str[i + 1] > 0xBF)
                 {
-                    *message = "After a first byte of F1, expecting a 2nd byte between 80 and BF";
+                    *message = "After a first byte of F1, expecting a 2nd byte between 80 and BF.";
                     return i + 1;
                 }
                 if (str[i + 2] < 0x80 || str[i + 2] > 0xBF)
                 {
-                    *message = "After a first byte of F1, expecting a 3rd byte between 80 and BF";
+                    *message = "After a first byte of F1, expecting a 3rd byte between 80 and BF.";
                     return i + 2;
                 }
                 if (str[i + 3] < 0x80 || str[i + 3] > 0xBF)
                 {
-                    *message = "After a first byte of F1, expecting a 4th byte between 80 and BF";
+                    *message = "After a first byte of F1, expecting a 4th byte between 80 and BF.";
                     return i + 3;
                 }
             }
@@ -226,7 +226,7 @@ int is_utf8(unsigned char *str, size_t len, char **message)
         }
         else
         {
-            *message = "Expecting bytes in the following ranges: 00..7F C2..F4";
+            *message = "Expecting bytes in the following ranges: 00..7F C2..F4.";
             return i;
         }
     }
