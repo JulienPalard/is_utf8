@@ -23,7 +23,7 @@ utf8_test_pipe()
     printf "."
     to_test="$1"
     should_return="$2"
-    printf "%s" "$to_test" | ./isutf8 - 2>/dev/null >/dev/null
+    printf "%s" "$to_test" | ./isutf8 2>/dev/null >/dev/null
     error_number=$?
     if ! [ z"$error_number" == z"$should_return" ]
     then
