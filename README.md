@@ -9,23 +9,23 @@ valid utf-8 sequences.
 
 `isutf8` returns 0 if the file is correctly encoded:
 
-    $ ./isutf8 main.c
+    $ isutf8 main.c
     $ echo $?
     0
 
 Some files here only contain ASCII or correctly encoded UTF8:
 
-    $ ./isutf8 README.md
-    $ ./isutf8 test.sh
+    $ isutf8 README.md
+    $ isutf8 test.sh
 
 But an ELF is clearly not UTF8, a verbose error is printed:
 
-    $ ./isutf8 isutf8
+    $ isutf8 isutf8
     isutf8: line 1, char 97, byte 96: Expecting bytes in the following ranges: 00..7F C2..F4.
 
 `-v` adds some context:
 
-    $ ./isutf8 isutf8
+    $ isutf8 -v isutf8
     isutf8: line 1, char 97, byte 96: Expecting bytes in the following ranges: 00..7F C2..F4.
     40 00 40 00 00 00 00 00 C0 01 00 00 00 00 00 00  | @.@.............
                             ^^                       |         ^
@@ -35,10 +35,10 @@ But an ELF is clearly not UTF8, a verbose error is printed:
 `isutf8` reads on stdin if no file are given, also note that `bash`
 helps a lot with the `$''` syntax allowing you to write and test hexadecimal:
 
-    $ echo $'\xe9' | ./isutf8
+    $ echo $'\xe9' | isutf8
     (standard input): line 1, char 0, byte 0: After a first byte between E1 and EC, expecting two following bytes.
 
-    $ echo "Hellö world" | iconv -f utf8 -t latin1 | ./isutf8 -
+    $ echo "Hellö world" | iconv -f utf8 -t latin1 | isutf8
     (standard input): line 1, char 4, byte 4: Expecting bytes in the following ranges: 00..7F C2..F4.
 
 # Find UTF8 or non-UTF8 files
