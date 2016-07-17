@@ -15,31 +15,45 @@
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 
-static void show_str(const char *str, unsigned int max_length)
+static int show_str(const char *str, unsigned int max_length)
 {
+    int printed = 0;
+
     while (max_length-- > 0)
     {
-        printf("   %c", (*str >= ' ' && *str <= '~') ? (unsigned char)*str: '.');
+        printed += printf("%c", (*str >= ' ' && *str <= '~') ? (unsigned char)*str: '.');
         str += 1;
     }
+    return printed;
 }
 
-static void show_hex_str(const char *str, unsigned int max_length)
+static int show_hex_str(const char *str, unsigned int max_length)
 {
+    int printed = 0;
+
     while (max_length-- > 0)
-        printf("\\x%.2X", (unsigned char)*str++);
+        printed += printf("%.2X ", (unsigned char)*str++);
+    return printed;
 }
 
+/*show_context(, 5, 279, 2, chars_before_error: 8, chars_after_error: -274)
+**/
 static void show_context(char *str, int str_length, int err_pos_in_str, int faulty_bytes)
 {
     int chars_before_error = MIN(err_pos_in_str, 8);
     int chars_after_error = MIN(str_length - err_pos_in_str, 8);
+    int printed = 0;
 
+    printed = show_hex_str(str + err_pos_in_str - chars_before_error, chars_before_error + chars_after_error); /* Print up to error. */
+    printf("%*s | ", 3 * 16 - printed, "");
     show_str(str + err_pos_in_str - chars_before_error, chars_before_error + chars_after_error); /* Print up to error. */
     printf("\n");
-    show_hex_str(str + err_pos_in_str - chars_before_error, chars_before_error + chars_after_error); /* Print up to error. */
-    printf("\n%*s", (4 * chars_before_error), "");
-    printf("%.*s\n", faulty_bytes * 4, "^^^^^^^^^^^^^^^^");
+    printed = printf("%*s", (3 * chars_before_error), "");
+    printed += printf("%.*s", faulty_bytes * 2 + faulty_bytes - 1, "^^^^^^^^^^^^^^^^");
+    printf("%*s | ", 3 * 16 - printed, "");
+    printf("%*s", (chars_before_error), "");
+    printf("%.*s", faulty_bytes, "^^^^");
+    printf("\n\n");
 }
 
 static void print_utf8_error(
@@ -93,7 +107,7 @@ static int is_utf8_readline(FILE *stream, const char *file_path,
         {
             offset += pos;
             print_utf8_error(file_path, lineno, pos, offset,
-                             string, pos, str_length, message, faulty_bytes,
+                             string, str_length, pos, message, faulty_bytes,
                              quiet, verbose, list_only, invert);
             break;
         }
