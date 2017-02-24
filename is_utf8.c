@@ -29,7 +29,7 @@
   Returns the first erroneous byte position, and give in
   `faulty_bytes` the number of actually existing bytes taking part in this error.
 */
-int is_utf8(unsigned char *str, size_t len, char **message, int *faulty_bytes)
+size_t is_utf8(unsigned char *str, size_t len, char **message, int *faulty_bytes)
 {
     size_t i = 0;
 
